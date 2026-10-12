@@ -29,6 +29,7 @@ orders_service/app/    REST Orders API + HTTP-клиент к Users API
 tests/                 pytest: CRUD, успех межсервисного вызова, 503, время отклика
 postman/               коллекция и окружение для Postman / Newman
 openapi/               выгруженные спецификации OpenAPI 3.1
+docs/                  скриншоты Swagger UI
 scripts/               запуск обоих сервисов и выгрузка OpenAPI
 ```
 
@@ -52,8 +53,8 @@ make openapi     # обновить openapi/users.json и openapi/orders.json
 
 Swagger UI:
 
-- http://127.0.0.1:8001/docs
-- http://127.0.0.1:8002/docs
+- Users API — http://127.0.0.1:8001/docs
+- Orders API — http://127.0.0.1:8002/docs
 
 В Postman импортируйте `postman/user_order.postman_collection.json` и `postman/local.postman_environment.json`.
 
@@ -64,6 +65,14 @@ Swagger UI:
 Изменяющие запросы требуют `Authorization: Bearer secret-token`. Каждый ответ содержит `X-Request-ID`. Ответы Orders API, которые ходили в Users API, ещё содержат `X-User-Service-Time-Ms` — время межсервисного вызова в миллисекундах.
 
 ### Users API — `http://127.0.0.1:8001`
+
+**Swagger: Users API**
+
+<img src="docs/users-swagger.png" alt="Swagger Users API" width="1498">
+
+**Авторизация** — кнопка Authorize, токен `secret-token`:
+
+<img src="docs/users-authorize.png" alt="Authorize Users API" width="900">
 
 | Метод | Путь | Токен | Успех | Ошибки |
 |---|---|---|---|---|
@@ -78,7 +87,39 @@ Swagger UI:
 
 `name` — 1–100 символов, не из одних пробелов. `email` нормализуется к нижнему регистру и уникален. Неизвестные поля запрещены. `id` назначает сервер.
 
+**GET `/api/v1/users`** — список пользователей:
+
+<img src="docs/users-list.png" alt="GET /api/v1/users" width="1498">
+
+**POST `/api/v1/users`** — создать пользователя. Успех `201`, без токена `401`, занятый email `409`:
+
+<img src="docs/users-create.png" alt="POST /api/v1/users" width="1498">
+
+Невалидное тело — `422`:
+
+<img src="docs/users-create-422.png" alt="POST /api/v1/users 422" width="1498">
+
+**GET `/api/v1/users/{id}`** — пользователь по id. Успех `200`, нет пользователя `404`:
+
+<img src="docs/users-get.png" alt="GET /api/v1/users/{id}" width="1498">
+
+Неверный id — `422`:
+
+<img src="docs/users-get-422.png" alt="GET /api/v1/users/{id} 422" width="1498">
+
 ### Orders API — `http://127.0.0.1:8002`
+
+**Swagger: Orders API** — при создании и чтении заказа сервис ходит в Users API; если тот недоступен, будет `503`:
+
+<img src="docs/orders-swagger.png" alt="Swagger Orders API" width="1498">
+
+**Авторизация** — тот же Bearer-токен:
+
+<img src="docs/orders-authorize.png" alt="Authorize Orders API" width="900">
+
+**Эндпоинты** — список, создание (с проверкой пользователя) и заказ по id:
+
+<img src="docs/orders-endpoints.png" alt="Orders API endpoints" width="1498">
 
 | Метод | Путь | Токен | Успех | Ошибки |
 |---|---|---|---|---|
@@ -98,6 +139,38 @@ Swagger UI:
 ```
 
 Перед созданием и при чтении заказа сервис вызывает `GET {USER_SERVICE_URL}/api/v1/users/{user_id}`. Адрес Users API задаётся переменной `USER_SERVICE_URL` (по умолчанию `http://127.0.0.1:8001`), таймаут — `USER_SERVICE_TIMEOUT` (по умолчанию 2 секунды).
+
+**GET `/api/v1/orders`** — список заказов, в каждом заказе вложенный `user` из Users API:
+
+<img src="docs/orders-list.png" alt="GET /api/v1/orders" width="1498">
+
+Ошибки списка: пользователя нет — `404`, Users API лёг — `503`:
+
+<img src="docs/orders-list-errors.png" alt="GET /api/v1/orders 404 и 503" width="1498">
+
+**POST `/api/v1/orders`** — создать заказ. Сервис сначала запрашивает пользователя по `user_id`:
+
+<img src="docs/orders-create.png" alt="POST /api/v1/orders" width="1498">
+
+Ошибки создания: пользователя нет — `404`, невалидное тело — `422`, Users API недоступен — `503`:
+
+<img src="docs/orders-create-errors.png" alt="POST /api/v1/orders 404 422 503" width="1498">
+
+**GET `/api/v1/orders/{id}`** — заказ по id, снова с актуальными данными пользователя:
+
+<img src="docs/orders-get.png" alt="GET /api/v1/orders/{id}" width="1498">
+
+Ошибки чтения: невалидный id — `422`, Users API недоступен — `503`:
+
+<img src="docs/orders-get-errors.png" alt="GET /api/v1/orders/{id} 422 и 503" width="1498">
+
+**GET `/health`** — сервис жив:
+
+<img src="docs/orders-health.png" alt="GET /health" width="1498">
+
+**Схемы** — `Order`, `OrderIn`, `UserSnapshot` и ошибки:
+
+<img src="docs/orders-schemas.png" alt="Orders API schemas" width="1498">
 
 ## Сценарии автотестов
 
