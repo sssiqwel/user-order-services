@@ -182,4 +182,6 @@ Swagger UI:
 | Users API недоступен → 503, заказ не создаётся | `test_orders_return_503_when_users_service_is_unavailable` | только pytest: поднимается отдельный Orders API с мёртвым `USER_SERVICE_URL` |
 | Время отклика межсервисного вызова | `test_user_fetch_response_time_is_within_slo` — `X-User-Service-Time-Ms` < 500 мс | те же запросы: заголовок < 500 мс, весь ответ < 1000 мс |
 
-SLO можно переопределить: `USER_FETCH_SLO_MS=800 make test`.
+<img width="1692" height="866" alt="image" src="https://github.com/user-attachments/assets/8ca5d7b1-95bc-49d2-8ba0-9de021c355f9" />
+
+<img width="1184" height="786" alt="image" src="https://github.com/user-attachments/assets/20456663-c175-4480-b408-fcef71f59457" />
