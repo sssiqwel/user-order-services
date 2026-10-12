@@ -52,7 +52,29 @@ Swagger UI:
 - Users API — http://127.0.0.1:8001/docs
 - Orders API — http://127.0.0.1:8002/docs
 
-В Postman импортируйте `postman/user_order.postman_collection.json` и `postman/local.postman_environment.json`.
+*Postman*
+
+<img width="2534" height="1344" alt="image" src="https://github.com/user-attachments/assets/eb60690e-b1ea-4228-b8e6-f516ea9ae232" />
+
+
+<img width="2528" height="1300" alt="image" src="https://github.com/user-attachments/assets/61848863-35ce-4bb5-98f0-66fa1d64903a" />
+
+
+<img width="2556" height="1352" alt="image" src="https://github.com/user-attachments/assets/c2034c43-ce73-4707-8c96-c8d7346e568d" />
+
+
+<img width="2572" height="1228" alt="image" src="https://github.com/user-attachments/assets/b50e9118-a6df-465c-bec0-0decab2311fc" />
+
+
+<img width="2540" height="1410" alt="image" src="https://github.com/user-attachments/assets/fa715133-2de0-42a4-be24-38ffca76b9f1" />
+
+
+<img width="2552" height="1396" alt="image" src="https://github.com/user-attachments/assets/5880f073-6a3a-41b0-a19c-1ceb7912a936" />
+
+
+<img width="2528" height="1434" alt="image" src="https://github.com/user-attachments/assets/b8e2120b-de5e-4e33-acdf-33590bc907cb" />
+
+
 
 Порты и токен меняются переменными окружения: `USERS_PORT=9001 ORDERS_PORT=9002 make run`. Тестам передайте те же `USERS_PORT`, `ORDERS_PORT` или `USERS_URL` / `ORDERS_URL`.
 
