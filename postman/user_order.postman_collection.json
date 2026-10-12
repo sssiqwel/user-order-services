@@ -1,0 +1,274 @@
+{
+  "info": {
+    "name": "Users + Orders — микросервисы",
+    "description": "Учебная коллекция: Users API, Orders API и межсервисный вызов. Создатель: sssiqwel. Запуск: make newman",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Has X-Request-ID header\", () => pm.response.to.have.header(\"X-Request-ID\"));",
+          "pm.test(\"Response time < 1000 ms\", () => pm.expect(pm.response.responseTime).to.be.below(1000));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "userId", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "email", "value": "" },
+    { "key": "userName", "value": "Анна Постман" }
+  ],
+  "item": [
+    {
+      "name": "01 Service",
+      "item": [
+        {
+          "name": "Users health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is {status: ok}\", () => pm.expect(pm.response.json()).to.eql({ status: \"ok\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{usersBaseUrl}}/health"
+          }
+        },
+        {
+          "name": "Orders health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Body is {status: ok}\", () => pm.expect(pm.response.json()).to.eql({ status: \"ok\" }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{ordersBaseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Users",
+      "item": [
+        {
+          "name": "Create user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"email\", `anna-${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Has numeric id\", () => pm.expect(body.id).to.be.a(\"number\"));",
+                  "pm.test(\"Name and email match\", () => {",
+                  "  pm.expect(body.name).to.eql(pm.collectionVariables.get(\"userName\"));",
+                  "  pm.expect(body.email).to.eql(pm.collectionVariables.get(\"email\"));",
+                  "});",
+                  "pm.test(\"Location points to the user\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"Location\")).to.eql(`/api/v1/users/${body.id}`);",
+                  "});",
+                  "pm.collectionVariables.set(\"userId\", String(body.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{userName}}\",\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{usersBaseUrl}}/api/v1/users"
+          }
+        },
+        {
+          "name": "Get user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Same user id\", () => pm.expect(String(body.id)).to.eql(pm.collectionVariables.get(\"userId\")));",
+                  "pm.test(\"Email matches\", () => pm.expect(body.email).to.eql(pm.collectionVariables.get(\"email\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{usersBaseUrl}}/api/v1/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Get missing user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Detail mentions user\", () => pm.expect(pm.response.json().detail).to.include(\"User 999999 not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{usersBaseUrl}}/api/v1/users/999999"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Inter-service",
+      "item": [
+        {
+          "name": "Create order fetches user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201 Created\", () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "const userId = Number(pm.collectionVariables.get(\"userId\"));",
+                  "pm.test(\"Order embeds user from Users API\", () => {",
+                  "  pm.expect(body.user_id).to.eql(userId);",
+                  "  pm.expect(body.user.id).to.eql(userId);",
+                  "  pm.expect(body.user.name).to.eql(pm.collectionVariables.get(\"userName\"));",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get(\"email\"));",
+                  "});",
+                  "pm.test(\"Has inter-service timing header\", () => {",
+                  "  pm.expect(pm.response.headers.get(\"X-User-Service-Time-Ms\")).to.not.be.empty;",
+                  "});",
+                  "pm.test(\"User fetch < 500 ms\", () => {",
+                  "  const ms = Number(pm.response.headers.get(\"X-User-Service-Time-Ms\"));",
+                  "  pm.expect(ms).to.be.below(500);",
+                  "});",
+                  "pm.collectionVariables.set(\"orderId\", String(body.id));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{userId}},\n  \"item\": \"Настольная лампа\",\n  \"quantity\": 2\n}"
+            },
+            "url": "{{ordersBaseUrl}}/api/v1/orders"
+          }
+        },
+        {
+          "name": "Get order refreshes user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200 OK\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Same order id\", () => pm.expect(String(body.id)).to.eql(pm.collectionVariables.get(\"orderId\")));",
+                  "pm.test(\"User data still present\", () => {",
+                  "  pm.expect(body.user.email).to.eql(pm.collectionVariables.get(\"email\"));",
+                  "  pm.expect(String(body.user.id)).to.eql(pm.collectionVariables.get(\"userId\"));",
+                  "});",
+                  "pm.test(\"User fetch < 500 ms\", () => {",
+                  "  const ms = Number(pm.response.headers.get(\"X-User-Service-Time-Ms\"));",
+                  "  pm.expect(ms).to.be.a(\"number\");",
+                  "  pm.expect(ms).to.be.below(500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{ordersBaseUrl}}/api/v1/orders/{{orderId}}"
+          }
+        },
+        {
+          "name": "Create order for missing user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Detail from Users API\", () => pm.expect(pm.response.json().detail).to.eql(\"User 999999 not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": 999999,\n  \"item\": \"Кружка\",\n  \"quantity\": 1\n}"
+            },
+            "url": "{{ordersBaseUrl}}/api/v1/orders"
+          }
+        }
+      ]
+    }
+  ]
+}

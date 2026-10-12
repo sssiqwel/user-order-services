@@ -1,0 +1,58 @@
+name: API tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON: python
+      USERS_PORT: "8001"
+      ORDERS_PORT: "8002"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Check exported OpenAPI specs
+        run: |
+          python scripts/export_openapi.py
+          git diff --exit-code openapi/users.json openapi/orders.json
+
+      - name: Start services
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port $USERS_PORT --app-dir users_service > users.server.log 2>&1 &
+          for i in $(seq 1 50); do curl -fsS http://127.0.0.1:$USERS_PORT/health && break; sleep 0.2; done
+          USER_SERVICE_URL=http://127.0.0.1:$USERS_PORT \
+            python -m uvicorn app.main:app --host 127.0.0.1 --port $ORDERS_PORT --app-dir orders_service > orders.server.log 2>&1 &
+          for i in $(seq 1 50); do curl -fsS http://127.0.0.1:$ORDERS_PORT/health && break; sleep 0.2; done
+
+      - name: pytest
+        run: python -m pytest
+
+      - name: Newman (Postman collection)
+        if: success() || failure()
+        run: make newman PYTHON=python
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            reports/
+            users.server.log
+            orders.server.log
