@@ -35,7 +35,7 @@ scripts/               запуск обоих сервисов и выгруз�
 
 ## Быстрый старт
 
-Python 3.12+ и Node.js 18+ (Node — только для Newman).
+Python 3.12+ и Node.js 18+ 
 
 ```bash
 make install     # создаст .venv и поставит зависимости
