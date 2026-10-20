@@ -1,6 +1,6 @@
 # Users + Orders: два микросервиса и автотесты API
 
-Создатель: **sssiqwel**
+
 
 Учебное решение на наработках курса «Интеграционное тестирование»: FastAPI, хранение в памяти, pytest + `requests`, Postman/Newman.
 
@@ -184,28 +184,3 @@ Swagger UI:
 
 SLO можно переопределить: `USER_FETCH_SLO_MS=800 make test`.
 
-## Примеры запросов
-
-Создать пользователя:
-
-```http
-POST /api/v1/users HTTP/1.1
-Host: 127.0.0.1:8001
-Authorization: Bearer secret-token
-Content-Type: application/json
-
-{"name": "Мария Смирнова", "email": "maria@example.com"}
-```
-
-Создать заказ — Orders API сам сходит в Users API:
-
-```http
-POST /api/v1/orders HTTP/1.1
-Host: 127.0.0.1:8002
-Authorization: Bearer secret-token
-Content-Type: application/json
-
-{"user_id": 3, "item": "Настольная лампа", "quantity": 2}
-```
-
-Если Users API выключен, тот же запрос вернёт `503` и `{"detail": "User service is unavailable: ..."}`.
