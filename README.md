@@ -55,11 +55,6 @@ Swagger UI:
 
 - Users API — http://127.0.0.1:8001/docs
 - Orders API — http://127.0.0.1:8002/docs
-
-В Postman импортируйте `postman/user_order.postman_collection.json` и `postman/local.postman_environment.json`.
-
-Порты и токен меняются переменными окружения: `USERS_PORT=9001 ORDERS_PORT=9002 make run`. Тестам передайте те же `USERS_PORT`, `ORDERS_PORT` или `USERS_URL` / `ORDERS_URL`.
-
 ## API
 
 Изменяющие запросы требуют `Authorization: Bearer secret-token`. Каждый ответ содержит `X-Request-ID`. Ответы Orders API, которые ходили в Users API, ещё содержат `X-User-Service-Time-Ms` — время межсервисного вызова в миллисекундах.
