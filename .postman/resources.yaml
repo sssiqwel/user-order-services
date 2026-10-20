@@ -1,8 +1,0 @@
-# Use this workspace to collaborate
-workspace:
-  id: 037afd7f-f104-40ec-89c9-b544caaa8227
-
-localResources:
-  specs:
-    - ../openapi/orders.json
-    - ../openapi/users.json

@@ -26,11 +26,11 @@
 ```
 users_service/app/     REST Users API
 orders_service/app/    REST Orders API + HTTP-клиент к Users API
-tests/                 pytest: CRUD, успех межсервисного вызова, 503, время отклика
+tests/                 pytest: CRUD, межсервисный вызов, 503, время отклика, «большой взрыв»
 postman/               коллекция и окружение для Postman / Newman
 openapi/               выгруженные спецификации OpenAPI 3.1
-docs/                  скриншоты Swagger UI
-scripts/               запуск обоих сервисов и выгрузка OpenAPI
+docs/                  скриншоты Swagger UI и отчёты по лабораторным
+scripts/               запуск сервисов, выгрузка OpenAPI, сборка отчётов в Word
 ```
 
 ## Быстрый старт
@@ -46,6 +46,7 @@ make run         # Users :8001, Orders :8002
 
 ```bash
 make test        # pytest; если сервисы не запущены, тесты поднимут их сами
+make test-bigbang  # только интеграция методом «большого взрыва»
 make newman      # Postman-коллекция через Newman
 make check       # pytest + newman
 make openapi     # обновить openapi/users.json и openapi/orders.json
@@ -55,6 +56,23 @@ Swagger UI:
 
 - Users API — http://127.0.0.1:8001/docs
 - Orders API — http://127.0.0.1:8002/docs
+
+*Postman*
+
+<img width="2534" height="1344" alt="image" src="https://github.com/user-attachments/assets/eb60690e-b1ea-4228-b8e6-f516ea9ae232" />
+
+<img width="2528" height="1300" alt="image" src="https://github.com/user-attachments/assets/61848863-35ce-4bb5-98f0-66fa1d64903a" />
+
+<img width="2556" height="1352" alt="image" src="https://github.com/user-attachments/assets/c2034c43-ce73-4707-8c96-c8d7346e568d" />
+
+<img width="2572" height="1228" alt="image" src="https://github.com/user-attachments/assets/b50e9118-a6df-465c-bec0-0decab2311fc" />
+
+<img width="2540" height="1410" alt="image" src="https://github.com/user-attachments/assets/fa715133-2de0-42a4-be24-38ffca76b9f1" />
+
+<img width="2552" height="1396" alt="image" src="https://github.com/user-attachments/assets/5880f073-6a3a-41b0-a19c-1ceb7912a936" />
+
+<img width="2528" height="1434" alt="image" src="https://github.com/user-attachments/assets/b8e2120b-de5e-4e33-acdf-33590bc907cb" />
+
 ## API
 
 Изменяющие запросы требуют `Authorization: Bearer secret-token`. Каждый ответ содержит `X-Request-ID`. Ответы Orders API, которые ходили в Users API, ещё содержат `X-User-Service-Time-Ms` — время межсервисного вызова в миллисекундах.
@@ -179,3 +197,27 @@ Swagger UI:
 
 SLO можно переопределить: `USER_FETCH_SLO_MS=800 make test`.
 
+<img width="1692" height="866" alt="image" src="https://github.com/user-attachments/assets/8ca5d7b1-95bc-49d2-8ba0-9de021c355f9" />
+
+<img width="1184" height="786" alt="image" src="https://github.com/user-attachments/assets/20456663-c175-4480-b408-fcef71f59457" />
+
+## Интеграция методом «большого взрыва»
+
+Все модули обоих сервисов поднимаются одновременно, без заглушек и поэтапного подключения, и тестируются только как готовая система. Тесты — `tests/test_big_bang.py`, сервисы стартуют на отдельных портах `28001` и `28002`.
+
+```bash
+make test-bigbang
+```
+
+Ожидаемый результат: `5 passed, 2 xfailed`. Два `xfail` — найденные дефекты, которые воспроизводятся на текущем коде:
+
+| ID | Дефект |
+|---|---|
+| BB-04 | После рестарта Users API пропадает один пользователь, и `GET /api/v1/orders` отвечает `404` на весь список |
+| BB-05 | Существующий заказ после рестарта Users API отдаёт `404 User … not found`, хотя заказ есть |
+
+Ещё две аномалии зафиксированы без падения тестов: N+1 вызовов Users API при чтении списка заказов и `/health` Orders API, который отвечает `200` при недоступном Users API.
+
+Чтобы увидеть дефекты как обычные падения: `.venv/bin/python -m pytest tests/test_big_bang.py --runxfail`.
+
+Отчёт: [`docs/otchet-big-bang.md`](docs/otchet-big-bang.md) и `docs/Otchet-big-bang.docx`.
