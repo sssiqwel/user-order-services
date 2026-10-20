@@ -1,17 +1,47 @@
 #!/usr/bin/env python3
 import importlib.util
+import re
 from pathlib import Path
+
+from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Cm, Pt
+from docx.enum.text import WD_LINE_SPACING
 
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("otchet_helpers", HERE / "build_otchet_docx.py")
 h = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(h)
 
-from docx import Document
-from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
-
+SRC = HERE.parent / "docs" / "otchet-big-bang.md"
 OUT = HERE.parent / "docs" / "Otchet-big-bang.docx"
+TABLE_WIDTH_CM = 16.5
+
+
+def plain(text: str) -> str:
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    return text.replace("**", "").replace("`", "").rstrip()
+
+
+def add_numbered_item(doc, number: str, text: str) -> None:
+    p = doc.add_paragraph()
+    p.add_run(f"{number}. {text}")
+    h.style_paragraph(p, size=14, align="left", space_after=2, first_line=False)
+    p.paragraph_format.left_indent = Cm(1.25)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+
+
+def add_bold_lead(doc, lead: str, rest: str) -> None:
+    p = doc.add_paragraph()
+    p.add_run(lead)
+    if rest:
+        p.add_run(" " + rest)
+    h.style_paragraph(p, size=14, align="justify", space_after=6)
+    p.runs[0].bold = True
+
+
+def parse_row(line: str) -> list[str]:
+    return [plain(cell.strip()) for cell in line.strip().strip("|").split("|")]
 
 
 def build():
@@ -27,549 +57,64 @@ def build():
     styles.font.size = Pt(14)
     styles._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
 
-    h.add_title(doc, "Отчёт по интеграционному тестированию")
-    h.add_title(doc, "Метод «большого взрыва»")
-    h.add_meta(doc, "Дисциплина: Интеграционное тестирование")
-    h.add_meta(doc, "Типовой пример: eShopOnWeb (Microsoft .NET Architecture)")
-    h.add_meta(doc, "Практический проект: Users API + Orders API (user-order-services)")
-    h.add_meta(doc, "Автор: sssiqwel")
-    h.add_meta(doc, "Дата прогона: 12 октября 2026")
+    lines = SRC.read_text(encoding="utf-8").splitlines()
+    in_header = True
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
 
-    h.add_heading(doc, "1. Цель работы")
-    h.add_body(
-        doc,
-        "Цель работы — изучить метод интеграционного тестирования «большого взрыва», применить его к собранной системе по той же схеме, что и для eShopOnWeb (все модули сразу, без поэтапного подключения), провести тестирование на полной сборке, зафиксировать дефекты и аномалии и на этой основе оценить ограничения подхода.",
-    )
-    h.add_body(doc, "Задание закрывается четырьмя шагами:")
-    h.add_numbered(doc, "Ознакомиться со структурой и модулями проекта.")
-    h.add_numbered(doc, "Интегрировать все модули одновременно, в один этап.")
-    h.add_numbered(doc, "Протестировать систему как единое целое, фиксируя дефекты.")
-    h.add_numbered(doc, "Составить отчёт с анализом проблем метода.")
+        if stripped.startswith("```"):
+            block = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith("```"):
+                block.append(lines[i])
+                i += 1
+            h.add_code_block(doc, block)
+            i += 1
+            continue
 
-    h.add_heading(doc, "2. Суть метода «большого взрыва»")
-    h.add_body(
-        doc,
-        "Метод «большого взрыва» (big bang integration) — это стратегия, при которой все разработанные модули объединяются одновременно и тестируются только как готовая система. Отдельные связки модулей заранее не проверяются. Интеграция откладывается на конец разработки.",
-    )
-    h.add_table(
-        doc,
-        ["Свойство", "Следствие"],
-        [
-            ["Одновременная интеграция", "Сразу видно, «живёт» ли система целиком"],
-            ["Нет промежуточных сборок", "Экономия на драйверах, заглушках и поэтапных стендах"],
-            ["Высокий риск ошибок", "Дефект проявляется только на полной сборке"],
-            ["Сложность диагностики", "По одному ответу API неясно, какой модуль виноват"],
-            ["Уместность", "Приемлем для небольших систем с малым числом модулей"],
-        ],
-        col_widths=[5.5, 11.0],
-    )
-    h.add_body(
-        doc,
-        "Отличие от инкрементальных стратегий (сверху вниз, снизу вверх, «сэндвич») в том, что там модули подключают по одному и после каждого шага прогоняют узкий набор проверок. В «большом взрыве» такого шага нет: либо вся система, либо ничего.",
-    )
+        if stripped.startswith("|"):
+            rows = []
+            while i < len(lines) and lines[i].strip().startswith("|"):
+                if not re.fullmatch(r"\|[\s\-:|]+\|", lines[i].strip()):
+                    rows.append(parse_row(lines[i]))
+                i += 1
+            width = TABLE_WIDTH_CM / len(rows[0])
+            h.add_table(doc, rows[0], rows[1:], col_widths=[width] * len(rows[0]))
+            continue
 
-    h.add_heading(doc, "3. eShopOnWeb как типовой пример")
-    h.add_body(
-        doc,
-        "eShopOnWeb — демонстрационный интернет-магазин Microsoft. Именно на таких системах в курсе показывают, как «большой взрыв» выглядит на практике: витрина, каталог, корзина, заказ и идентификация поднимаются сразу.",
-    )
-    h.add_subheading(doc, "3.1. Модули eShopOnWeb")
-    h.add_code_block(
-        doc,
-        [
-            "eShopOnWeb",
-            "├── ApplicationCore     сущности и сервисы предметной области",
-            "│   ├── CatalogItem, CatalogBrand, CatalogType",
-            "│   ├── Basket, BasketItem",
-            "│   ├── Order, OrderItem",
-            "│   └── Buyer + интерфейсы репозиториев и сервисов",
-            "├── Infrastructure      EF Core, ASP.NET Identity, почта",
-            "├── Web                 MVC-витрина (каталог → корзина → оформление)",
-            "├── PublicApi           HTTP API каталога",
-            "└── BlazorAdmin         админка",
-        ],
-    )
-    h.add_body(
-        doc,
-        "Если применить «большой взрыв» к eShopOnWeb буквально, стенд выглядит так: поднимаются Identity, каталог, корзина, заказы, инфраструктура БД и Web, после чего тестировщик проходит сценарий «найти товар → положить в корзину → оформить заказ» одним этапом, без предварительной проверки BasketService отдельно от репозитория и без проверки OrderService отдельно от Identity. Именно эта схема перенесена на учебный вариант курса.",
-    )
-    h.add_subheading(doc, "3.2. Соответствие модулей")
-    h.add_body(
-        doc,
-        "Учебный проект user-order-services — компактный аналог той же интеграции: сервис заказов синхронно ходит в сервис пользователей, как в eShopOnWeb заказ и корзина опираются на покупателя (Buyer / Identity).",
-    )
-    h.add_table(
-        doc,
-        ["eShopOnWeb", "user-order-services", "Роль на полной сборке"],
-        [
-            [
-                "Identity / Buyer",
-                "users_service (models, storage, auth, API)",
-                "Кто покупатель",
-            ],
-            [
-                "Order / Basket",
-                "orders_service (models, storage, auth, API)",
-                "Что заказано",
-            ],
-            [
-                "Infrastructure",
-                "storage.py + users_client.py",
-                "Память процесса + HTTP",
-            ],
-            [
-                "Web / PublicApi",
-                "FastAPI main.py обоих сервисов",
-                "Внешний контракт",
-            ],
-            ["Корреляция запроса", "X-Request-ID", "Сквозная трассировка"],
-        ],
-        col_widths=[4.5, 7.0, 5.0],
-    )
-    h.add_body(
-        doc,
-        "Модулей немного, поэтому метод формально уместен. Цель работы — показать, что даже на маленькой системе диагностика уже страдает.",
-    )
+        if not stripped:
+            i += 1
+            continue
 
-    h.add_heading(doc, "4. Структура и модули учебного проекта")
-    h.add_body(
-        doc,
-        "Система состоит из двух процессов, которые в «большом взрыве» стартуют вместе, без заглушек. Клиент обращается к Users API и к Orders API; Orders API при создании и чтении заказа сам вызывает Users API по HTTP.",
-    )
-    h.add_code_block(
-        doc,
-        [
-            "клиент",
-            "  ├─ HTTP ──► Users API",
-            "  │              auth, models, storage, middleware X-Request-ID",
-            "  └─ HTTP ──► Orders API",
-            "                 auth, models, storage, users_client ──► Users API",
-        ],
-    )
-    h.add_subheading(doc, "4.1. Модули Users API")
-    h.add_table(
-        doc,
-        ["Модуль", "Файл", "Ответственность"],
-        [
-            ["Контракт", "users_service/app/models.py", "Валидация имени и email"],
-            [
-                "Хранилище",
-                "users_service/app/storage.py",
-                "In-memory, уникальность email, seed (Анна, Пётр)",
-            ],
-            ["Авторизация", "users_service/app/auth.py", "Bearer-токен на POST"],
-            [
-                "API",
-                "users_service/app/main.py",
-                "/health, список, получение, создание",
-            ],
-        ],
-        col_widths=[3.5, 6.5, 6.5],
-    )
-    h.add_subheading(doc, "4.2. Модули Orders API")
-    h.add_table(
-        doc,
-        ["Модуль", "Файл", "Ответственность"],
-        [
-            ["Контракт", "orders_service/app/models.py", "user_id, item, quantity, UserSnapshot"],
-            [
-                "Хранилище",
-                "orders_service/app/storage.py",
-                "In-memory заказы, без снимка пользователя",
-            ],
-            ["Авторизация", "orders_service/app/auth.py", "Тот же Bearer-токен"],
-            [
-                "HTTP-клиент",
-                "orders_service/app/users_client.py",
-                "Вызов Users API; 404 и 503",
-            ],
-            [
-                "API",
-                "orders_service/app/main.py",
-                "Создание/чтение с enrich_order",
-            ],
-        ],
-        col_widths=[3.5, 6.5, 6.5],
-    )
-    h.add_body(
-        doc,
-        "Точка интеграции одна, но на ней сходятся сразу несколько модулей: валидация входа, токен, запись заказа, HTTP-клиент, хранилище пользователей, разбор ответа, сборка UserSnapshot. Именно поэтому «большой взрыв» здесь показателен: любой из этих модулей может дать один и тот же внешний симптом.",
-    )
-
-    h.add_heading(doc, "5. Как метод был применён")
-    h.add_body(
-        doc,
-        "Инкрементальный стенд (сначала Users, потом клиент с заглушкой, потом Orders) не собирался. Оба сервиса стартовали одним шагом. Практическая реализация — tests/test_big_bang.py.",
-    )
-    h.add_bullet(
-        doc,
-        "Фикстура bang поднимает Users API и Orders API на портах 28001 и 28002 одновременно.",
-    )
-    h.add_bullet(
-        doc,
-        "Фикстура fresh_bang даёт чистую пару процессов для разрушающих сценариев (рестарт и останов Users).",
-    )
-    h.add_bullet(doc, "Заглушек, моков и подмены users_client нет.")
-    h.add_bullet(doc, "Тесты видят только HTTP собранной системы.")
-    h.add_body(doc, "Команда прогона:")
-    h.add_code_block(
-        doc,
-        [
-            "make test-bigbang",
-            "# эквивалент:",
-            ".venv/bin/python -m pytest tests/test_big_bang.py -v --tb=short",
-        ],
-    )
-    h.add_body(
-        doc,
-        "Это и есть «один этап»: либо оба модуля живы и связаны реальным HTTP, либо сценарий не выполняется.",
-    )
-
-    h.add_heading(doc, "6. Тестовые сценарии на полной сборке")
-    h.add_body(
-        doc,
-        "Сценарии специально не изолируют модули. Каждый из них бьёт по уже склеенной системе.",
-    )
-
-    h.add_subheading(doc, "BB-01. Сквозной happy path")
-    h.scenario_table(
-        doc,
-        [
-            ["Цель", "Убедиться, что полная сборка вообще работает"],
-            [
-                "Модули",
-                "health, seed storage, auth, models, middleware, users_client, оба API",
-            ],
-            [
-                "Шаги",
-                "GET /health на обоих сервисах; GET /users (seed); POST /users; POST /orders; GET /orders/{id} и GET /orders",
-            ],
-            [
-                "Ожидание",
-                "201/200, вложенный user, заголовки Location, X-Request-ID, X-User-Service-Time-Ms",
-            ],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-02. Негативные пути на той же сборке")
-    h.scenario_table(
-        doc,
-        [
-            ["Цель", "Проверить 404/401/422 без выключения модулей"],
-            [
-                "Шаги",
-                "Заказ на user_id=999999; POST без токена; неверный токен; невалидное тело; GET /orders/999999",
-            ],
-            ["Ожидание", "404 пользователя, 401, 422, 404 заказа"],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-03. Время списка заказов (N+1)")
-    h.scenario_table(
-        doc,
-        [
-            [
-                "Цель",
-                "Зафиксировать, как список заказов размножает вызовы Users API",
-            ],
-            [
-                "Шаги",
-                "Создать 4 заказа одному пользователю, сравнить X-User-Service-Time-Ms у GET /orders/{id} и GET /orders",
-            ],
-            [
-                "Ожидание",
-                "Время списка не растёт пропорционально числу элементов",
-            ],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-04. Исчезновение одного пользователя")
-    h.scenario_table(
-        doc,
-        [
-            [
-                "Цель",
-                "Понять, что будет с GET /orders, если часть покупателей пропала",
-            ],
-            [
-                "Шаги",
-                "Заказ для seed-пользователя id=1; создать временного пользователя и заказ; рестарт Users API; снова GET /orders",
-            ],
-            ["Ожидание", "200, в списке остаётся заказ пользователя id=1"],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-05. Чтение существующего заказа после рестарта Users")
-    h.scenario_table(
-        doc,
-        [
-            ["Цель", "Отличить «нет заказа» от «нет пользователя»"],
-            ["Шаги", "Создать пользователя и заказ; рестарт Users; GET /orders/{id}"],
-            [
-                "Ожидание",
-                "200 со снимком либо отдельный код (409/410), заголовок времени вызова сохраняется",
-            ],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-06. Health при мёртвой зависимости")
-    h.scenario_table(
-        doc,
-        [
-            ["Цель", "Проверить, видна ли поломка интеграции через /health"],
-            [
-                "Шаги",
-                "Создать заказ; остановить Users; GET /health, GET /orders/{id}, GET /orders",
-            ],
-            [
-                "Ожидание",
-                "Либо readiness 503, либо явное разделение liveness/readiness",
-            ],
-        ],
-    )
-
-    h.add_subheading(doc, "BB-07. Сквозной X-Request-ID")
-    h.scenario_table(
-        doc,
-        [
-            ["Цель", "Проверить, что идентификатор запроса не теряется на границе сервисов"],
-            [
-                "Шаги",
-                "POST /orders и GET /orders/{id} с заголовком X-Request-ID: bang-trace-…",
-            ],
-            ["Ожидание", "Тот же идентификатор в ответе Orders API"],
-        ],
-    )
-
-    h.add_heading(doc, "7. Результаты прогона")
-    h.add_body(
-        doc,
-        "Первый прогон метода (без последующей пометки известных дефектов) выполнен 12 октября 2026, длительность 4,15 с, 7 тестов.",
-    )
-    h.add_code_block(
-        doc,
-        [
-            "test_bb_01_all_modules_together_happy_path          PASSED",
-            "test_bb_02_error_paths_on_fully_assembled_system    PASSED",
-            "test_bb_03_n_plus_one_user_fetches_on_list          PASSED",
-            "test_bb_04_list_orders_fails_entirely_if_one_user…  FAILED",
-            "test_bb_05_get_order_masks_missing_user_as_order…   FAILED",
-            "test_bb_06_health_stays_ok_while_integration_is…    PASSED",
-            "test_bb_07_request_id_propagates_across_services    PASSED",
-            "",
-            "2 failed, 5 passed in 4.15s",
-        ],
-    )
-    h.add_body(
-        doc,
-        "Артефакты первого прогона: reports/pytest-bigbang-first-run.txt, reports/pytest-bigbang-first-run.xml, reports/big-bang-findings.json. После фиксации дефекты BB-04 и BB-05 помечены pytest.mark.xfail(strict=True): повторный прогон подтверждает их как известные, а если поведение исправят, тесты станут XPASS и потребуют снять метку.",
-    )
-    h.add_table(
-        doc,
-        ["Сценарий", "Первый прогон", "Смысл"],
-        [
-            [
-                "BB-01",
-                "PASSED",
-                "Сценарий eShopOnWeb-типа «покупатель → заказ → чтение» закрыт",
-            ],
-            ["BB-02", "PASSED", "Контрактные ошибки на живой сборке работают"],
-            [
-                "BB-03",
-                "PASSED, аномалия",
-                "Список из 5 заказов: 3,68 мс против 0,86 мс на один заказ",
-            ],
-            ["BB-04", "FAILED", "GET /orders → 404 User 3 not found"],
-            [
-                "BB-05",
-                "FAILED",
-                "GET /orders/1 → 404 User 3 not found, нет заголовка времени",
-            ],
-            [
-                "BB-06",
-                "PASSED как факт",
-                "/health Orders = 200, чтение заказа = 503",
-            ],
-            ["BB-07", "PASSED", "Трассировка жива"],
-        ],
-        col_widths=[2.5, 4.0, 10.0],
-    )
-    h.add_body(
-        doc,
-        "Итог метода: система «в целом» выглядит рабочей (happy path зелёный), но на полной сборке вскрываются дефекты взаимодействия, которые модульные проверки поодиночке не показали бы, а «большой взрыв» при этом не указывает виновный модуль.",
-    )
-
-    h.add_heading(doc, "8. Выявленные дефекты и аномалии")
-
-    h.add_subheading(doc, "BB-04. Каскадный отказ списка заказов — критический")
-    h.add_body(
-        doc,
-        "После рестарта Users API в хранилище снова только seed-пользователи с id 1 и 2. Заказ для Анны (id=1) остался, заказ для пользователя id=3 остался в Orders, но самого пользователя уже нет. Фактический ответ: GET /api/v1/orders → HTTP 404, {\"detail\": \"User 3 not found\"}.",
-    )
-    h.add_body(
-        doc,
-        "Это дефект, потому что список — операция чтения множества: один «битый» элемент не должен обнулять выдачу. Ожидалось HTTP 200 и заказ пользователя id=1 в массиве.",
-    )
-    h.add_body(
-        doc,
-        "«Большой взрыв» не помогает локализовать причину. Один и тот же 404 могут дать: UserStorage.get (пользователя нет после рестарта); users_client.get_user (любой 404 Users превращается в UserServiceError); enrich_order (исключение сразу становится HTTPException); list_orders (цикл без изоляции ошибки по элементу). Без чтения кода нельзя выбрать виновника. Сообщение «User 3 not found» выглядит как ответ Users API, хотя его сформировал Orders API.",
-    )
-
-    h.add_subheading(doc, "BB-05. Маскировка пропажи пользователя под 404 заказа — критический")
-    h.add_body(
-        doc,
-        "Заказ с id=1 в Orders существует. После рестарта Users запрос GET /orders/1 возвращает HTTP 404 {\"detail\": \"User 3 not found\"}. Заголовка X-User-Service-Time-Ms нет: исключение выбрасывается до attach_timing.",
-    )
-    h.add_body(
-        doc,
-        "Клиент не отличает «заказа нет» (Order {id} not found) от «заказ есть, пользователь исчез». Для витрины в духе eShopOnWeb это аналог ситуации «заказ в истории есть, а покупатель из Identity пропал»: страница истории должна показать заказ, а не «не найдено».",
-    )
-    h.add_body(
-        doc,
-        "Снова один код 404. Возможные виновники: storage Users, клиент, get_order, отсутствие сохранённого снимка пользователя в StoredOrder. Метод не сужает круг.",
-    )
-
-    h.add_subheading(doc, "BB-03. N+1 вызовов Users API — средний")
-    h.add_body(
-        doc,
-        "На полной сборке GET /orders вызывает get_user для каждого элемента. Замер заголовка: один заказ — 0,86 мс; список из 5 — 3,68 мс (примерно пропорционально N). На двух сервисах это ещё терпимо. На eShopOnWeb с корзиной из десятков позиций такой же паттерн уже дал бы заметную задержку. «Большой взрыв» аномалию увидел, но не отделил её от функциональных 404: все симптомы сыплются из одного прогона.",
-    )
-
-    h.add_subheading(doc, "BB-06. Liveness не показывает поломку интеграции — средний")
-    h.add_body(
-        doc,
-        "При остановленном Users API запрос GET /health к Orders возвращает 200 {\"status\":\"ok\"}, тогда как GET /orders/{id} и GET /orders возвращают 503. Сервис «жив», интеграция мертва. Для мониторинга это ложно-зелёный сигнал. Тест зафиксировал факт; как дефект контракта /health он спорный (часто liveness специально не трогает зависимости), поэтому в pytest он проходит, а в каталог аномалий попадает.",
-    )
-
-    h.add_subheading(doc, "Прочие наблюдения")
-    h.add_numbered(
-        doc,
-        "Два независимых in-memory storage: рестарт одного сервиса сразу делает данные другого лживыми. В eShopOnWeb ту же роль играет рассинхрон Identity DB и Orders DB.",
-    )
-    h.add_numbered(
-        doc,
-        "StoredOrder не хранит снимок пользователя. Обогащение всегда живое, деградации «показать хотя бы то, что сохранили» нет.",
-    )
-    h.add_numbered(
-        doc,
-        "Дублирование auth.py. Расхождение API_TOKEN на полной сборке дало бы 401 сразу на двух границах — снова без указания, какой копии auth это касается.",
-    )
-    h.add_numbered(
-        doc,
-        "Happy path маскирует дыры. BB-01 зелёный, если не делать рестарт. Метод создаёт ложное ощущение готовности.",
-    )
-
-    h.add_heading(doc, "9. Проблемы метода, которые показал этот прогон")
-    h.add_subheading(doc, "9.1. Сложность диагностики")
-    h.add_body(
-        doc,
-        "Главный тезис метода подтвердился буквально. Оба падения — HTTP 404 с текстом User 3 not found. По внешнему симптому нельзя ответить: это Users не нашёл запись; это Orders неправильно пробросил ошибку; это storage заказов хранит «осиротевший» user_id; это list_orders не умеет пропускать битый элемент.",
-    )
-    h.add_body(
-        doc,
-        "Инкрементальный подход локализовал бы быстрее: проверка Users после рестарта (пользователь 3 отсутствует — ожидаемо), проверка Orders со stub Users (заказ читается), проверка связки (ошибка именно в enrich_order / отсутствии изоляции в цикле).",
-    )
-
-    h.add_subheading(doc, "9.2. Высокий риск «всё зелёное, пока не тронули край»")
-    h.add_body(
-        doc,
-        "Пять тестов из семи зелёные, включая полный happy path. Если бы набор ограничился BB-01 и BB-02, отчёт сказал бы «интеграция успешна». Дефекты вылезли только на рестарте зависимости — типичный для «большого взрыва» слепой угол: тестируют счастливый путь собранной системы и не видят контракт при частичном отказе.",
-    )
-
-    h.add_subheading(doc, "9.3. Комбинаторный взрыв состояний")
-    h.add_body(
-        doc,
-        "На полной сборке одновременно живы auth, два storage, клиент, валидация, middleware. Число комбинаций (токен × наличие пользователя × доступность Users × непустой список заказов × рестарт) растёт быстро. Метод не даёт каркаса, в каком порядке эти комбинации включать. Пришлось сознательно писать разрушающие сценарии, иначе дефекты BB-04 и BB-05 остались бы ненайденными.",
-    )
-
-    h.add_subheading(doc, "9.4. Ложное чувство «маленький проект — можно взрывать»")
-    h.add_body(
-        doc,
-        "Учебная система меньше eShopOnWeb: два сервиса, нет БД, нет UI. Тем не менее локализация уже требует чтения нескольких файлов. На eShopOnWeb (Web + Identity + Catalog + Basket + Order + EF) тот же 404 на странице заказа мог бы означать пропавшего Buyer, сломанный OrderService, ошибку Razor Page или сбой SQL. Вывод: формулировка «подходит для небольших проектов» означает не «безопасен», а «ещё можно пережить», и то при наличии хотя бы нескольких негативных сценариев на полной сборке.",
-    )
-
-    h.add_subheading(doc, "9.5. Нет промежуточного регресса")
-    h.add_body(
-        doc,
-        "Пока модули не склеены, «большой взрыв» не даёт сигналов. Ошибка в users_client (неверный URL, таймаут, разбор JSON) всплывает только в конце. Инкрементальная сборка поймала бы её на шаге «Orders + заглушка Users» или «Orders + реальный Users, без UI».",
-    )
-
-    h.add_heading(doc, "10. Сравнение с инкрементальной интеграцией")
-    h.add_table(
-        doc,
-        ["Дефект", "Большой взрыв", "Инкрементальное подключение"],
-        [
-            [
-                "BB-04 каскадный 404",
-                "Симптом: «список заказов не работает». Виновник неясен",
-                "Шаг list_orders + stub get_user (404 на id=3): сразу видно отсутствие try/except в цикле",
-            ],
-            [
-                "BB-05 путаница 404",
-                "Симптом совпадает с «нет заказа»",
-                "Шаг get_order при живом storage и 404 от Users: видно, что код и текст не про заказ",
-            ],
-            [
-                "BB-03 N+1",
-                "Видно по заголовку времени, но тонет среди 404",
-                "Шаг list_orders + счётчик вызовов stub: N вызовов на N заказов",
-            ],
-            [
-                "BB-06 health",
-                "Зафиксировали, потому что специально остановили Users",
-                "Шаг Orders без Users: health vs 503 сравниваются изолированно",
-            ],
-        ],
-        col_widths=[3.5, 6.5, 6.5],
-    )
-    h.add_body(
-        doc,
-        "Для eShopOnWeb инкремент выглядел бы так: сначала ApplicationCore + фейковый репозиторий, затем Infrastructure/EF, затем Identity, затем Web. «Большой взрыв» пропускает эти ступени и оставляет отладку на момент, когда уже запущено всё.",
-    )
-
-    h.add_heading(doc, "11. Выводы")
-    h.add_numbered(
-        doc,
-        "Метод «большого взрыва» применён к учебному аналогу eShopOnWeb: все модули Users и Orders подняты одновременно, без заглушек, тесты идут только против полной сборки (tests/test_big_bang.py).",
-    )
-    h.add_numbered(
-        doc,
-        "Базовый сквозной сценарий (BB-01, BB-02, BB-07) проходит. На этом метод создаёт впечатление успешной интеграции — типичная ловушка.",
-    )
-    h.add_numbered(
-        doc,
-        "На той же сборке выявлены два критических дефекта (каскадный 404 списка заказов; маскировка пропавшего пользователя под 404 заказа) и две аномалии (N+1 вызовов, health без проверки зависимости).",
-    )
-    h.add_numbered(
-        doc,
-        "Оба критических дефекта имеют один внешний симптом (404 User 3 not found). Это прямая демонстрация главной слабости метода: высокая стоимость локализации.",
-    )
-    h.add_numbered(
-        doc,
-        "Для небольшого проекта метод допустим как финальная дымовая проверка «система вообще встаёт». Как единственная стратегия интеграции он недостаточен: крайние состояния (рестарт, частичный отказ) либо не проверяются, либо проверяются слишком поздно и слишком непрозрачно.",
-    )
-    h.add_numbered(
-        doc,
-        "Практическая рекомендация: оставить прогон полной сборки (big bang smoke), но дефекты вроде BB-04/BB-05 закрывать инкрементально — изоляция ошибки в list_orders, сохранённый снимок пользователя, раздельные коды «нет заказа» / «нет пользователя», readiness отдельно от liveness.",
-    )
-
-    h.add_heading(doc, "Приложение. Как воспроизвести")
-    h.add_code_block(
-        doc,
-        [
-            "make install",
-            "make test-bigbang",
-        ],
-    )
-    h.add_body(
-        doc,
-        "Известные дефекты BB-04 и BB-05 помечены xfail(strict=True): в текущем коде они воспроизводятся (XFAIL). Снять метки можно, только исправив поведение. Первый «честный» красный прогон сохранён в reports/pytest-bigbang-first-run.txt, reports/pytest-bigbang-first-run.xml и reports/big-bang-findings.json.",
-    )
+        if stripped.startswith("# "):
+            h.add_title(doc, plain(stripped[2:]))
+        elif stripped.startswith("## ") and in_header:
+            h.add_title(doc, plain(stripped[3:]))
+            in_header = False
+        elif stripped.startswith("## "):
+            h.add_heading(doc, plain(stripped[3:]))
+        elif stripped.startswith("### "):
+            h.add_subheading(doc, plain(stripped[4:]))
+        elif stripped.startswith("- "):
+            h.add_bullet(doc, plain(stripped[2:]))
+        elif m := re.match(r"(\d+)\.\s+(.*)", stripped):
+            add_numbered_item(doc, m.group(1), plain(m.group(2)))
+        elif m := re.match(r"\*\*([^*]+)\*\*\s*(.*)", stripped):
+            lead, rest = m.group(1), plain(m.group(2))
+            if lead.endswith(":") and len(rest) < 60 and i < 12:
+                h.add_meta(doc, f"{lead} {rest}")
+            else:
+                add_bold_lead(doc, lead, rest)
+        else:
+            h.add_body(doc, plain(stripped))
+        i += 1
 
     props = doc.core_properties
     props.author = "sssiqwel"
     props.last_modified_by = "sssiqwel"
-    props.title = "Отчёт по интеграционному тестированию. Метод «большого взрыва»"
+    props.title = "Отчёт по лабораторной работе. Метод «большого взрыва»"
     props.comments = ""
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
