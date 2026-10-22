@@ -226,9 +226,9 @@ make test-bigbang
 
 Отчёт: [`docs/otchet-big-bang.md`](docs/otchet-big-bang.md) и `docs/Otchet-big-bang.docx`.
 
-## Гибридное интеграционное тестирование
+## Многослойное гибридное интеграционное тестирование
 
-Интерфейс, бизнес-логика и доступ к данным проверяются с двух сторон. Снизу вверх хранилище вызывает тестовый драйвер, без HTTP. Сверху вниз HTTP-интерфейс работает с заглушкой вместо Users API. Критичный сценарий «создать заказ» стыкует все три слоя Orders API, внешний модуль пользователя остаётся заглушкой.
+Систему режут на слои и проверяют их с двух сторон: интерфейс, бизнес-логика и доступ к данным. Снизу вверх хранилище вызывает тестовый драйвер, без HTTP. Сверху вниз HTTP-интерфейс работает с заглушкой вместо Users API. Критичный сценарий «создать заказ» стыкует все три слоя Orders API, внешний модуль пользователя остаётся заглушкой.
 
 ```bash
 make test-hybrid
@@ -248,3 +248,15 @@ make test-hybrid
 Чтобы увидеть дефекты как обычные падения: `.venv/bin/python -m pytest tests/test_hybrid.py --runxfail`.
 
 Отчёт: [`docs/otchet-gibridnoe-testirovanie.md`](docs/otchet-gibridnoe-testirovanie.md) и `docs/Otchet-gibridnoe-testirovanie.docx`.
+
+## Непрерывное интеграционное тестирование
+
+При каждом `push` и pull request GitHub Actions сам поднимает оба сервиса и гоняет интеграционные тесты. Локально тот же конвейер — `make ci`: сверка OpenAPI с кодом, Users API и Orders API, pytest и Newman. Результаты пишутся в `reports/pytest.xml`, `reports/newman.xml` и `reports/ci-summary.md`. На GitHub эти файлы сохраняются артефактом `test-reports`, даже если сборка красная. Отдельного деплоя нет: сервисы учебные и держат данные в памяти.
+
+```bash
+make ci
+```
+
+Проверка была на изменении `GET /health`: в ответ добавлено поле `service`. Пока тесты ждали старое тело, конвейер закончился с кодом 1: 4 падения pytest и 2 падения Newman. После правки ожиданий тот же запуск закончился с кодом 0: `45 passed, 6 xfailed`, у Newman 39 проверок и 0 падений.
+
+Отчёт: [`docs/otchet-cicd.md`](docs/otchet-cicd.md) и `docs/Otchet-cicd.docx`.
