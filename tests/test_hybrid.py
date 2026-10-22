@@ -504,7 +504,7 @@ def test_hy_11_health_does_not_touch_the_lower_layer(orders):
         health.status_code == 200 and calls_after_health == 0 and fetched.status_code == 503,
     )
     assert health.status_code == 200
-    assert health.json() == {"status": "ok"}
+    assert health.json() == {"status": "ok", "service": "orders"}
     assert calls_after_health == 0
     assert fetched.status_code == 503
 

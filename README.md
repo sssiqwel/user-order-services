@@ -50,8 +50,11 @@ make test-bigbang  # только интеграция методом «боль
 make test-hybrid   # гибридное тестирование слоёв (заглушки и драйверы)
 make newman      # Postman-коллекция через Newman
 make check       # pytest + newman
+make ci          # конвейер GitHub Actions: OpenAPI, pytest, Newman, сводка
 make openapi     # обновить openapi/users.json и openapi/orders.json
 ```
+
+При каждом `push` и pull request тот же конвейер запускает GitHub Actions (`.github/workflows/ci.yml`). Отчёты JUnit попадают в артефакт `test-reports`, краткая сводка — в `reports/ci-summary.md` и в журнал задания. Отчёт по настройке: [`docs/otchet-cicd.md`](docs/otchet-cicd.md) и `docs/Otchet-cicd.docx`.
 
 Swagger UI:
 
@@ -76,7 +79,7 @@ Swagger UI:
 
 ## API
 
-Изменяющие запросы требуют `Authorization: Bearer secret-token`. Каждый ответ содержит `X-Request-ID`. Ответы Orders API, которые ходили в Users API, ещё содержат `X-User-Service-Time-Ms` — время межсервисного вызова в миллисекундах.
+Изменяющие запросы требуют `Authorization: Bearer secret-token`. Каждый ответ содержит `X-Request-ID`. Ответы Orders API, которые ходили в Users API, ещё содержат `X-User-Service-Time-Ms` — время межсервисного вызова в миллисекундах. `GET /health` возвращает `{"status":"ok","service":"users"}` или `"orders"`, чтобы было видно, какой процесс ответил.
 
 ### Users API — `http://127.0.0.1:8001`
 

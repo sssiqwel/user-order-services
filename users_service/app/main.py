@@ -45,7 +45,7 @@ def get_user_or_404(user_id: int) -> User:
 
 @app.get("/health", tags=["service"], summary="Проверка, что сервер жив")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "service": "users"}
 
 
 @app.get(f"{API_PREFIX}/users", tags=["users"], summary="Список пользователей")

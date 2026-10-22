@@ -146,8 +146,8 @@ def test_bb_01_all_modules_together_happy_path(bang: BangSystem):
     """Все модули сразу: health, seed, auth, валидация, storage, HTTP-клиент, обогащение."""
     users_health = bang.users.get("/health")
     orders_health = bang.orders.get("/health")
-    assert users_health.status_code == 200 and users_health.json() == {"status": "ok"}
-    assert orders_health.status_code == 200 and orders_health.json() == {"status": "ok"}
+    assert users_health.status_code == 200 and users_health.json() == {"status": "ok", "service": "users"}
+    assert orders_health.status_code == 200 and orders_health.json() == {"status": "ok", "service": "orders"}
 
     listed_users = bang.users.get("/api/v1/users")
     assert listed_users.status_code == 200

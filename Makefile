@@ -13,7 +13,7 @@ NEWMAN      = npx --yes newman@6.2.1 run $(COLLECTION) -e $(ENVIRONMENT) \
               --env-var ordersBaseUrl=http://$(HOST):$(ORDERS_PORT) \
               --reporters cli,junit --reporter-junit-export reports/newman.xml
 
-.PHONY: help install run run-users run-orders test test-bigbang test-hybrid newman check openapi clean
+.PHONY: help install run run-users run-orders test test-bigbang test-hybrid newman check ci openapi clean
 
 $(VENV)/bin/python:
 	python3 -m venv $(VENV)
@@ -54,6 +54,9 @@ check:
 	@mkdir -p reports
 	scripts/with_servers.sh sh -c '$(PYTHON) -m pytest && $(NEWMAN)'
 
+ci:
+	bash scripts/ci.sh
+
 openapi:
 	$(PYTHON) scripts/export_openapi.py
 
@@ -68,4 +71,5 @@ help:
 	@echo "make test-hybrid   гибридное тестирование слоёв (HY-05/08/09/10 — известные дефекты, xfail)"
 	@echo "make newman      Postman-коллекция через Newman"
 	@echo "make check       pytest + newman"
+	@echo "make ci          тот же конвейер, что в GitHub Actions"
 	@echo "make openapi     обновить openapi/*.json"

@@ -61,7 +61,7 @@ def attach_timing(response: Response, elapsed_ms: float) -> None:
 
 @app.get("/health", tags=["service"], summary="Проверка, что сервер жив")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "service": "orders"}
 
 
 @app.get(

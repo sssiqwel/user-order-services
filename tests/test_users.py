@@ -7,7 +7,7 @@ def test_health(users_api):
     response = users_api.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "service": "users"}
 
 
 def test_request_id_is_echoed(users_api):

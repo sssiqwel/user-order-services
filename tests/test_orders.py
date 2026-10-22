@@ -7,7 +7,7 @@ def test_health(orders_api):
     response = orders_api.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "service": "orders"}
 
 
 def test_create_and_get_order(orders_api, auth_headers, order_payload, created_user):
