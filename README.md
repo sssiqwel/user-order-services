@@ -63,19 +63,19 @@ Swagger UI:
 
 *Postman*
 
-<img width="2534" height="1344" alt="image" src="https://github.com/user-attachments/assets/eb60690e-b1ea-4228-b8e6-f516ea9ae232" />
+<img src="docs/postman-01.png" alt="Postman: GET /health Orders API" width="1498">
 
-<img width="2528" height="1300" alt="image" src="https://github.com/user-attachments/assets/61848863-35ce-4bb5-98f0-66fa1d64903a" />
+<img src="docs/postman-02.png" alt="Postman" width="1498">
 
-<img width="2556" height="1352" alt="image" src="https://github.com/user-attachments/assets/c2034c43-ce73-4707-8c96-c8d7346e568d" />
+<img src="docs/postman-03.png" alt="Postman" width="1498">
 
-<img width="2572" height="1228" alt="image" src="https://github.com/user-attachments/assets/b50e9118-a6df-465c-bec0-0decab2311fc" />
+<img src="docs/postman-04.png" alt="Postman" width="1498">
 
-<img width="2540" height="1410" alt="image" src="https://github.com/user-attachments/assets/fa715133-2de0-42a4-be24-38ffca76b9f1" />
+<img src="docs/postman-05.png" alt="Postman" width="1498">
 
-<img width="2552" height="1396" alt="image" src="https://github.com/user-attachments/assets/5880f073-6a3a-41b0-a19c-1ceb7912a936" />
+<img src="docs/postman-06.png" alt="Postman" width="1498">
 
-<img width="2528" height="1434" alt="image" src="https://github.com/user-attachments/assets/b8e2120b-de5e-4e33-acdf-33590bc907cb" />
+<img src="docs/postman-07.png" alt="Postman" width="1498">
 
 ## API
 
@@ -201,9 +201,9 @@ Swagger UI:
 
 SLO можно переопределить: `USER_FETCH_SLO_MS=800 make test`.
 
-<img width="1692" height="866" alt="image" src="https://github.com/user-attachments/assets/8ca5d7b1-95bc-49d2-8ba0-9de021c355f9" />
+<img src="docs/pytest-passed.png" alt="pytest: 31 passed" width="1498">
 
-<img width="1184" height="786" alt="image" src="https://github.com/user-attachments/assets/20456663-c175-4480-b408-fcef71f59457" />
+<img src="docs/newman-summary.png" alt="Newman: 39 проверок, 0 падений" width="1498">
 
 ## Интеграция методом «большого взрыва»
 
