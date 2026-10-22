@@ -13,7 +13,7 @@ NEWMAN      = npx --yes newman@6.2.1 run $(COLLECTION) -e $(ENVIRONMENT) \
               --env-var ordersBaseUrl=http://$(HOST):$(ORDERS_PORT) \
               --reporters cli,junit --reporter-junit-export reports/newman.xml
 
-.PHONY: help install run run-users run-orders test test-bigbang newman check openapi clean
+.PHONY: help install run run-users run-orders test test-bigbang test-hybrid newman check openapi clean
 
 $(VENV)/bin/python:
 	python3 -m venv $(VENV)
@@ -41,6 +41,11 @@ test-bigbang:
 	$(PYTHON) -m pytest tests/test_big_bang.py -v --tb=short \
 		--junitxml=reports/pytest-bigbang.xml
 
+test-hybrid:
+	@mkdir -p reports
+	$(PYTHON) -m pytest tests/test_hybrid.py -v --tb=short \
+		--junitxml=reports/pytest-hybrid.xml
+
 newman:
 	@mkdir -p reports
 	scripts/with_servers.sh $(NEWMAN)
@@ -60,6 +65,7 @@ help:
 	@echo "make run         оба сервиса: Users :$(USERS_PORT), Orders :$(ORDERS_PORT)"
 	@echo "make test        pytest; если сервисы не запущены, тесты поднимут их сами"
 	@echo "make test-bigbang  интеграция «большим взрывом» (BB-04/BB-05 — известные дефекты, xfail)"
+	@echo "make test-hybrid   гибридное тестирование слоёв (HY-05/08/09/10 — известные дефекты, xfail)"
 	@echo "make newman      Postman-коллекция через Newman"
 	@echo "make check       pytest + newman"
 	@echo "make openapi     обновить openapi/*.json"

@@ -26,7 +26,7 @@
 ```
 users_service/app/     REST Users API
 orders_service/app/    REST Orders API + HTTP-клиент к Users API
-tests/                 pytest: CRUD, межсервисный вызов, 503, время отклика, «большой взрыв»
+tests/                 pytest: CRUD, межсервисный вызов, 503, время отклика, «большой взрыв», гибрид слоёв
 postman/               коллекция и окружение для Postman / Newman
 openapi/               выгруженные спецификации OpenAPI 3.1
 docs/                  скриншоты Swagger UI и отчёты по лабораторным
@@ -47,6 +47,7 @@ make run         # Users :8001, Orders :8002
 ```bash
 make test        # pytest; если сервисы не запущены, тесты поднимут их сами
 make test-bigbang  # только интеграция методом «большого взрыва»
+make test-hybrid   # гибридное тестирование слоёв (заглушки и драйверы)
 make newman      # Postman-коллекция через Newman
 make check       # pytest + newman
 make openapi     # обновить openapi/users.json и openapi/orders.json
@@ -221,3 +222,26 @@ make test-bigbang
 Чтобы увидеть дефекты как обычные падения: `.venv/bin/python -m pytest tests/test_big_bang.py --runxfail`.
 
 Отчёт: [`docs/otchet-big-bang.md`](docs/otchet-big-bang.md) и `docs/Otchet-big-bang.docx`.
+
+## Гибридное интеграционное тестирование
+
+Интерфейс, бизнес-логика и доступ к данным проверяются с двух сторон. Снизу вверх хранилище вызывает тестовый драйвер, без HTTP. Сверху вниз HTTP-интерфейс работает с заглушкой вместо Users API. Критичный сценарий «создать заказ» стыкует все три слоя Orders API, внешний модуль пользователя остаётся заглушкой.
+
+```bash
+make test-hybrid
+```
+
+Ожидаемый результат: `9 passed, 4 xfailed`. Четыре `xfail` — дефекты, которые заглушка или драйвер относят к конкретному слою:
+
+| ID | Слой | Дефект |
+|---|---|---|
+| HY-05 | бизнес-логика `users_client` | ответ Users API `422` превращается в `503` |
+| HY-08 | интерфейс `list_orders` | один отсутствующий пользователь роняет весь список, хотя оба заказа лежат в хранилище |
+| HY-09 | стык логики и интерфейса | лишнее поле в заглушке пользователя даёт `500`, заказ при этом уже записан |
+| HY-10 | интерфейс `get_order` | существующий заказ получает `404`, хотя `storage.get` его возвращает |
+
+Ещё две аномалии не роняют тесты: список заказов вызывает заглушку пользователя по разу на каждый заказ и `/health` не обращается к нижнему слою.
+
+Чтобы увидеть дефекты как обычные падения: `.venv/bin/python -m pytest tests/test_hybrid.py --runxfail`.
+
+Отчёт: [`docs/otchet-gibridnoe-testirovanie.md`](docs/otchet-gibridnoe-testirovanie.md) и `docs/Otchet-gibridnoe-testirovanie.docx`.
